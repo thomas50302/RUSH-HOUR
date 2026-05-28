@@ -60,12 +60,25 @@ public class Container : MonoBehaviour, IInteractable
             bool isFromThisContainer = false;
             int foundIndex = -1;
             
-            if (ing != null)
+            // 1. 優先使用「預製物名稱」比對，這對 Unity 最為穩健 (移除了 "(Clone)" 字樣)
+            string carriedName = carried.name.Replace("(Clone)", "").Trim();
+            for (int i = 0; i < activeList.Count; i++)
+            {
+                if (activeList[i] != null && activeList[i].name == carriedName)
+                {
+                    isFromThisContainer = true;
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            // 2. 如果名稱沒對上，再嘗試使用 Ingredient 腳本內部的名稱比對 (雙重保險)
+            if (!isFromThisContainer && ing != null)
             {
                 for (int i = 0; i < activeList.Count; i++)
                 {
                     Ingredient listIng = activeList[i].GetComponent<Ingredient>();
-                    if (listIng != null && listIng.ingredientName == ing.ingredientName)
+                    if (listIng != null && !string.IsNullOrEmpty(listIng.ingredientName) && listIng.ingredientName == ing.ingredientName)
                     {
                         isFromThisContainer = true;
                         foundIndex = i;
