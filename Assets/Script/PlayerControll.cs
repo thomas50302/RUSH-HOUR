@@ -14,6 +14,9 @@ public class PlayerControll : MonoBehaviour
     [Tooltip("角色拿取物品時，物品要放置的位置")]
     public Transform holdPoint;
 
+    [HideInInspector]
+    public bool isInputLocked = false; // 用來鎖定玩家輸入 (例如在開啟選單時)
+
     private Rigidbody2D rb2d;
     private PlayerInput playerInput;
     private Vector2 faceDirection = Vector2.down; // 預設面向下方
@@ -33,6 +36,13 @@ public class PlayerControll : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // 如果輸入被鎖定，停止移動並跳過更新
+        if (isInputLocked)
+        {
+            if (rb2d != null) rb2d.velocity = Vector2.zero;
+            return;
+        }
+
         // 取得該玩家的輸入
         float horizontal = playerInput.Horizontal;
         float vertical = playerInput.Vertical;
