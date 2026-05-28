@@ -9,15 +9,15 @@ public class Container : MonoBehaviour, IInteractable
     public GameObject ingredientPrefab;
 
     [Header("複數食材設定 (新功能)")]
-    [Tooltip("此箱子提供的多種食材預製物清單。如果放了多個，玩家互動時會開啟選單選擇")]
+    [Tooltip("此箱子提供的多種食材預製物清單。如果放了多個，玩家再次互動會直接切換手上的食材")]
     public List<GameObject> ingredientPrefabs = new List<GameObject>();
 
     [Header("3D 文字提示 (選填)")]
-    [Tooltip("可將子物件中的 3D TextMesh 拖入此欄位，會自動顯示目前準備拿取的食材名稱")]
+    [Tooltip("可將子物件中的 3D TextMesh 拖入此欄位，會自動顯示目前選中的食材名稱")]
     public TextMesh infoTextMesh;
 
     private List<GameObject> activeList = new List<GameObject>();
-    private int currentCycleIndex = 0; // 用於沒有 UI 時的循環切換索引
+    private int currentCycleIndex = 0; 
 
     void Start()
     {
@@ -43,43 +43,56 @@ public class Container : MonoBehaviour, IInteractable
             return;
         }
 
-        // 如果玩家雙手空空
+        // 情況 A：玩家雙手空空 -> 拿取清單中的第一個（或當前選中）的食材
         if (!player.IsCarrying())
         {
-            // 情況 A：只有一種食材，直接生成並讓玩家拿著
-            if (activeList.Count == 1)
-            {
-                SpawnIngredientForPlayer(player, activeList[0]);
-            }
-            // 情況 B：有多種食材
-            else
-            {
-                if (IngredientSelectionMenu.Instance != null)
-                {
-                    // 如果有建立 UI 選擇選單，開啟選單讓玩家選擇
-                    IngredientSelectionMenu.Instance.OpenMenu(player, activeList, "選擇食材", (chosenPrefab) =>
-                    {
-                        SpawnIngredientForPlayer(player, chosenPrefab);
-                    });
-                }
-                else
-                {
-                    // Fallback 機制 (無 UI 時)：
-                    // 每次玩家點擊會直接拿取目前選中的食材，並自動切換到下一種，達到「循環拿取」的效果
-                    GameObject currentPrefab = activeList[currentCycleIndex];
-                    SpawnIngredientForPlayer(player, currentPrefab);
-
-                    // 自動輪替到下一個食材
-                    currentCycleIndex = (currentCycleIndex + 1) % activeList.Count;
-                    UpdateInfoText();
-                    
-                    Debug.Log($"[食材箱] 未偵測到 UI 選單。已直接生成食材。下次點擊將生成: {activeList[currentCycleIndex].name} (循環切換中)");
-                }
-            }
+            currentCycleIndex = 0; // 重置為第一個
+            SpawnIngredientForPlayer(player, activeList[currentCycleIndex]);
+            UpdateInfoText();
         }
+        // 情況 B：玩家手上拿著東西
         else
         {
-            Debug.Log("手上已經拿著東西了，無法再拿取食材！");
+            GameObject carried = player.GetCarriedObject();
+            Ingredient ing = carried.GetComponent<Ingredient>();
+
+            // 檢查手上的食材是否屬於這個櫃子提供的種類
+            bool isFromThisContainer = false;
+            int foundIndex = -1;
+            
+            if (ing != null)
+            {
+                for (int i = 0; i < activeList.Count; i++)
+                {
+                    Ingredient listIng = activeList[i].GetComponent<Ingredient>();
+                    if (listIng != null && listIng.ingredientName == ing.ingredientName)
+                    {
+                        isFromThisContainer = true;
+                        foundIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // 如果手上的食材是這個櫃子提供的，且櫃子有多個選項 -> 銷毀手上的，直接換成下一個！
+            if (isFromThisContainer && activeList.Count > 1)
+            {
+                // 放下並銷毀舊的
+                GameObject oldObj = player.Drop();
+                Destroy(oldObj);
+
+                // 計算下一個食材的索引
+                currentCycleIndex = (foundIndex + 1) % activeList.Count;
+                GameObject nextPrefab = activeList[currentCycleIndex];
+
+                // 生成並讓玩家拿起新的
+                SpawnIngredientForPlayer(player, nextPrefab);
+                UpdateInfoText();
+            }
+            else
+            {
+                Debug.Log("手拿著其他無關的物品 (如盤子或其他箱子的食材)，無法在此切換。");
+            }
         }
     }
 
@@ -92,7 +105,7 @@ public class Container : MonoBehaviour, IInteractable
 
         Ingredient ing = newIngredientObj.GetComponent<Ingredient>();
         string ingName = ing != null ? ing.ingredientName : prefab.name;
-        Debug.Log($"[{player.gameObject.name}] 成功拿取了 [{ingName}]。");
+        Debug.Log($"[{player.gameObject.name}] 拿取了 [{ingName}]。");
     }
 
     private void UpdateInfoText()
@@ -106,9 +119,15 @@ public class Container : MonoBehaviour, IInteractable
             }
             else
             {
-                Ingredient ing = activeList[currentCycleIndex].GetComponent<Ingredient>();
-                string nextName = ing != null ? ing.ingredientName : activeList[currentCycleIndex].name;
-                infoTextMesh.text = $"{nextName}\n(點擊拿取/切換)";
+                // 顯示下一個會被切換出來的食材，給予提示
+                int nextIndex = (currentCycleIndex + 1) % activeList.Count;
+                Ingredient currentIng = activeList[currentCycleIndex].GetComponent<Ingredient>();
+                Ingredient nextIng = activeList[nextIndex].GetComponent<Ingredient>();
+                
+                string currentName = currentIng != null ? currentIng.ingredientName : activeList[currentCycleIndex].name;
+                string nextName = nextIng != null ? nextIng.ingredientName : activeList[nextIndex].name;
+
+                infoTextMesh.text = $"手持: {currentName}\n(再按一次換: {nextName})";
             }
         }
     }

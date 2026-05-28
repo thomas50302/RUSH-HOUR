@@ -80,8 +80,8 @@ public class PlayerControll : MonoBehaviour
         float interactDistance = 1.0f; // 互動探測距離
         Vector2 checkPos = (Vector2)transform.position + faceDirection * interactDistance;
 
-        // 畫出綠色射線以便在 Scene 視窗中偵測與除錯
-        Debug.DrawRay(transform.position, faceDirection * interactDistance, Color.green, 1f);
+        // 畫出綠色射線以便在 Scene 視窗中偵測與除錯 (如果需要除錯，可以取消註解這行)
+        // Debug.DrawRay(transform.position, faceDirection * interactDistance, Color.green, 1f);
 
         // 偵測前方半徑 0.4 的圓形範圍內的碰撞體
         Collider2D hit = Physics2D.OverlapCircle(checkPos, 0.4f);
