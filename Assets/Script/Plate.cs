@@ -44,22 +44,22 @@ public class Plate : MonoBehaviour
     {
         // 這裡做一個簡單的配方配對機制
         // 1. 印尼炒飯 Nasi Goreng: Garlic, Chicken, Rice, Egg
-        if (ContainsAll("Garlic", "Chicken", "Rice", "Egg") && addedIngredients.Count == 4)
+        if (ContainsAll("Garlic", "Chicken", "Rice", "Egg"))
         {
             recipeName = "Nasi Goreng";
         }
         // 2. 巴東燴牛肉 Rendang: Garlic, Beef, CoconutMilk
-        else if (ContainsAll("Garlic", "Beef", "CoconutMilk") && addedIngredients.Count == 3)
+        else if (ContainsAll("Garlic", "Beef", "CoconutMilk"))
         {
             recipeName = "Rendang";
         }
         // 3. 蜂蜜烤雞 Ayam Bakar Madu: Garlic, Honey, SweetSoy, Chicken
-        else if (ContainsAll("Garlic", "Honey", "SweetSoy", "Chicken") && addedIngredients.Count == 4)
+        else if (ContainsAll("Garlic", "Honey", "SweetSoy", "Chicken"))
         {
             recipeName = "Ayam Bakar Madu";
         }
         // 4. 炸天貝 Tempe Goreng: Garlic, SweetSoy, Tempeh, Flour
-        else if (ContainsAll("Garlic", "SweetSoy", "Tempeh", "Flour") && addedIngredients.Count == 4)
+        else if (ContainsAll("Garlic", "SweetSoy", "Tempeh", "Flour"))
         {
             recipeName = "Tempe Goreng";
         }
