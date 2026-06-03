@@ -28,6 +28,20 @@ public class Plate : MonoBehaviour
     public bool AddIngredient(string ingredientName)
     {
         if (isDirty) return false;
+
+        // 標準化名稱，避免拼寫或空白鍵造成食譜配對失敗
+        if (ingredientName == "SoySause" || ingredientName == "SoySauce" || ingredientName == "SweetSoy")
+        {
+            ingredientName = "SweetSoy";
+        }
+        else if (ingredientName == "Coconut Milk" || ingredientName == "CoconutMilk")
+        {
+            ingredientName = "CoconutMilk";
+        }
+        else if (ingredientName == "Shrimp Paste" || ingredientName == "ShrimpPaste")
+        {
+            ingredientName = "ShrimpPaste";
+        }
         
         addedIngredients.Add(ingredientName);
         Debug.Log($"盤子加入了食材: {ingredientName}。目前內容: {GetContentsDescription()}");
