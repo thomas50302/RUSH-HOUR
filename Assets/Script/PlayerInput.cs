@@ -11,16 +11,18 @@ public class PlayerInput : MonoBehaviour
     public float Horizontal { get; private set; }
     public float Vertical { get; private set; }
     public bool InteractPressed { get; private set; }
+    public bool CyclePressed { get; private set; }
 
     void Update()
     {
         Horizontal = 0f;
         Vertical = 0f;
         InteractPressed = false;
+        CyclePressed = false;
 
         if (playerID == 1)
         {
-            // 玩家 1：使用 W A S D 移動，F 鍵互動
+            // 玩家 1：使用 W A S D 移動，F 鍵互動，E 鍵切換
             if (Input.GetKey(KeyCode.W)) Vertical = 1f;
             if (Input.GetKey(KeyCode.S)) Vertical = -1f;
             if (Input.GetKey(KeyCode.A)) Horizontal = -1f;
@@ -30,10 +32,14 @@ public class PlayerInput : MonoBehaviour
             {
                 InteractPressed = true;
             }
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                CyclePressed = true;
+            }
         }
         else if (playerID == 2)
         {
-            // 玩家 2：使用 鍵盤方向鍵 移動，Space (空白鍵) 或 Enter 鍵互動
+            // 玩家 2：使用 鍵盤方向鍵 移動，Space (空白鍵) 或 Enter 鍵互動，Slash (/) 或 RightShift 鍵切換
             if (Input.GetKey(KeyCode.UpArrow)) Vertical = 1f;
             if (Input.GetKey(KeyCode.DownArrow)) Vertical = -1f;
             if (Input.GetKey(KeyCode.LeftArrow)) Horizontal = -1f;
@@ -42,6 +48,10 @@ public class PlayerInput : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
             {
                 InteractPressed = true;
+            }
+            if (Input.GetKeyDown(KeyCode.Slash) || Input.GetKeyDown(KeyCode.RightShift))
+            {
+                CyclePressed = true;
             }
         }
     }

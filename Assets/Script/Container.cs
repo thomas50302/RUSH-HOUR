@@ -87,25 +87,92 @@ public class Container : MonoBehaviour, IInteractable
                 }
             }
 
-            // 如果手上的食材是這個櫃子提供的，且櫃子有多個選項 -> 銷毀手上的，直接換成下一個！
-            if (isFromThisContainer && activeList.Count > 1)
+            // 如果手上的食材是這個櫃子提供的 -> 丟下並銷毀，放回食物箱！
+            if (isFromThisContainer)
             {
-                // 放下並銷毀舊的
                 GameObject oldObj = player.Drop();
                 Destroy(oldObj);
-
-                // 計算下一個食材的索引
-                currentCycleIndex = (foundIndex + 1) % activeList.Count;
-                GameObject nextPrefab = activeList[currentCycleIndex];
-
-                // 生成並讓玩家拿起新的
-                SpawnIngredientForPlayer(player, nextPrefab);
+                Debug.Log($"[{player.gameObject.name}] 將 [{carriedName}] 放回了食物箱 [{gameObject.name}]。");
                 UpdateInfoText();
             }
             else
             {
-                Debug.Log("手拿著其他無關的物品 (如盤子或其他箱子的食材)，無法在此切換。");
+                Debug.Log("手拿著其他無關的物品 (如盤子或其他箱子的食材)，無法在此放回。");
             }
+        }
+    }
+
+    /// <summary>
+    /// 新增功能：切換選擇食物（按 E 鍵）
+    /// </summary>
+    public void CycleIngredient(PlayerControll player)
+    {
+        if (activeList.Count <= 1)
+        {
+            Debug.Log($"【{gameObject.name}】只有一種食材，無需切換。");
+            return;
+        }
+
+        // 情況 A：玩家雙手空空 -> 直接切換箱子目前選中的食材索引，更新文字提示
+        if (!player.IsCarrying())
+        {
+            currentCycleIndex = (currentCycleIndex + 1) % activeList.Count;
+            UpdateInfoText();
+            Debug.Log($"【{gameObject.name}】切換選中食材為: {activeList[currentCycleIndex].name}");
+            return;
+        }
+
+        // 情況 B：玩家手上有拿東西
+        GameObject carried = player.GetCarriedObject();
+        Ingredient ing = carried.GetComponent<Ingredient>();
+        string carriedName = carried.name.Replace("(Clone)", "").Trim();
+
+        // 檢查手上的食材是否屬於這個櫃子提供的種類
+        bool isFromThisContainer = false;
+        int foundIndex = -1;
+        
+        for (int i = 0; i < activeList.Count; i++)
+        {
+            if (activeList[i] != null && activeList[i].name == carriedName)
+            {
+                isFromThisContainer = true;
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (!isFromThisContainer && ing != null)
+        {
+            for (int i = 0; i < activeList.Count; i++)
+            {
+                Ingredient listIng = activeList[i].GetComponent<Ingredient>();
+                if (listIng != null && !string.IsNullOrEmpty(listIng.ingredientName) && listIng.ingredientName == ing.ingredientName)
+                {
+                    isFromThisContainer = true;
+                    foundIndex = i;
+                    break;
+                }
+            }
+        }
+
+        // 如果是該箱子的食材，銷毀手上的，直接換成清單中的下一個食材
+        if (isFromThisContainer)
+        {
+            // 放下並銷毀舊的
+            GameObject oldObj = player.Drop();
+            Destroy(oldObj);
+
+            // 計算下一個食材的索引
+            currentCycleIndex = (foundIndex + 1) % activeList.Count;
+            GameObject nextPrefab = activeList[currentCycleIndex];
+
+            // 生成並讓玩家拿起新的
+            SpawnIngredientForPlayer(player, nextPrefab);
+            UpdateInfoText();
+        }
+        else
+        {
+            Debug.Log("手持其他無關物品，無法在此切換。");
         }
     }
 

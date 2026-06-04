@@ -51,27 +51,47 @@ public class Table : MonoBehaviour, IInteractable
             if (player.IsCarrying())
             {
                 GameObject carried = player.GetCarriedObject();
-                Plate plate = carried.GetComponent<Plate>();
+                Plate plate = carried.GetComponent<Plate>() ?? carried.GetComponentInChildren<Plate>();
                 
-                // 檢查手上是不是盛載食物的乾淨盤子
+                // 獲取食物名稱
+                string foodName = "";
                 if (plate != null && !plate.isDirty)
+                {
+                    foodName = plate.recipeName;
+                }
+                else
+                {
+                    // 如果玩家手上拿的不是 Plate，直接以攜帶物件的名稱作為食物名稱判定
+                    foodName = carried.name;
+                    foodName = System.Text.RegularExpressions.Regex.Replace(foodName, @"\s*\(Clone\)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    foodName = System.Text.RegularExpressions.Regex.Replace(foodName, @"\s*\(\d+\)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    foodName = foodName.Trim();
+
+                    // 自動對照轉換（例如將 "Fried Rice" 對應為客人點的 "Nasi Goreng"）
+                    if (foodName.Contains("Fried Rice") || foodName.Contains("FriedRice") || foodName.Contains("炒飯"))
+                    {
+                        foodName = "Nasi Goreng";
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(foodName))
                 {
                     if (seatedCustomer != null && seatedCustomer.currentState == CustomerAI.CustomerState.WaitingForFood)
                     {
                         // 驗證食物是否與客人點的一致
-                        if (seatedCustomer.orderRecipeName == plate.recipeName)
+                        if (seatedCustomer.orderRecipeName == foodName)
                         {
-                            // 移除玩家手上的盤子並銷毀
+                            // 移除玩家手上的食物物件並銷毀
                             player.Drop();
                             Destroy(carried);
                             
                             // 開始用餐
                             seatedCustomer.ServeFood();
-                            Debug.Log($"[{player.gameObject.name}] 成功送上 {plate.recipeName}！客人開始享用。");
+                            Debug.Log($"[{player.gameObject.name}] 成功送上 {foodName}！客人開始享用。");
                         }
                         else
                         {
-                            Debug.Log($"送錯食物了！客人點的是 {seatedCustomer.orderRecipeName}，你手上拿的是 {plate.recipeName}");
+                            Debug.Log($"送錯食物了！客人點的是 {seatedCustomer.orderRecipeName}，你手上拿的是 {foodName}");
                         }
                     }
                 }
@@ -122,7 +142,7 @@ public class Table : MonoBehaviour, IInteractable
             Vector3 spawnPos = platePoint != null ? platePoint.position : transform.position;
             dirtyPlateObj = Instantiate(dirtyPlatePrefab, spawnPos, Quaternion.identity);
             
-            Plate plateScript = dirtyPlateObj.GetComponent<Plate>();
+            Plate plateScript = dirtyPlateObj.GetComponent<Plate>() ?? dirtyPlateObj.GetComponentInChildren<Plate>();
             if (plateScript != null)
             {
                 plateScript.isDirty = true;

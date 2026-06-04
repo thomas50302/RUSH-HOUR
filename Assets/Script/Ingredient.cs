@@ -25,6 +25,17 @@ public class Ingredient : MonoBehaviour
 
     private SpriteRenderer spriteRenderer;
 
+    void Awake()
+    {
+        if (string.IsNullOrEmpty(ingredientName))
+        {
+            string cleanedName = gameObject.name;
+            cleanedName = System.Text.RegularExpressions.Regex.Replace(cleanedName, @"\s*\(Clone\)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            cleanedName = System.Text.RegularExpressions.Regex.Replace(cleanedName, @"\s*\(\d+\)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            ingredientName = cleanedName.Trim();
+        }
+    }
+
     void Start()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();

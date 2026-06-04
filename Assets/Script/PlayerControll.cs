@@ -21,6 +21,7 @@ public class PlayerControll : MonoBehaviour
     private PlayerInput playerInput;
     private Vector2 faceDirection = Vector2.down; // 預設面向下方
     private GameObject carriedObject = null;      // 目前手上拿著的物件
+    private List<IInteractable> nearbyInteractables = new List<IInteractable>();
 
     // Start is called before the first frame update
     void Start()
@@ -31,6 +32,7 @@ public class PlayerControll : MonoBehaviour
         // 自動進行物理設定，防止滑動與旋轉
         rb2d.gravityScale = 0f;
         rb2d.constraints = RigidbodyConstraints2D.FreezeRotation;
+        transform.rotation = Quaternion.identity; // 確保角色角度重置為預設 (無旋轉)
     }
 
     // Update is called once per frame
@@ -58,17 +60,17 @@ public class PlayerControll : MonoBehaviour
         // 使用物理速度移動
         rb2d.velocity = movement * moveSpeed;
 
-        // 簡單旋轉角色 Sprite 來表示方向 (在 2D 俯視角中常用)
-        if (movement.magnitude > 0.1f)
-        {
-            float angle = Mathf.Atan2(faceDirection.y, faceDirection.x) * Mathf.Rad2Deg - 90f; // -90 是因為預設頭朝上
-            transform.rotation = Quaternion.Euler(0, 0, angle);
-        }
 
         // 偵測互動
         if (playerInput.InteractPressed)
         {
             TryInteract();
+        }
+
+        // 偵測切換與選擇食材 (E / Slash / RightShift)
+        if (playerInput.CyclePressed)
+        {
+            TryCycleInteract();
         }
     }
 
@@ -77,24 +79,124 @@ public class PlayerControll : MonoBehaviour
     /// </summary>
     void TryInteract()
     {
+        // 清除已被銷毀物件的 Null 參照，防止報錯
+        nearbyInteractables.RemoveAll(item => item == null || (item is MonoBehaviour mb && mb == null));
+
+        IInteractable target = null;
+
+        // 1. 優先偵測前方半徑 0.4 的圓形範圍內的碰撞體 (面向優先)
         float interactDistance = 1.0f; // 互動探測距離
         Vector2 checkPos = (Vector2)transform.position + faceDirection * interactDistance;
-
-        // 畫出綠色射線以便在 Scene 視窗中偵測與除錯 (如果需要除錯，可以取消註解這行)
-        // Debug.DrawRay(transform.position, faceDirection * interactDistance, Color.green, 1f);
-
-        // 偵測前方半徑 0.4 的圓形範圍內的碰撞體
         Collider2D hit = Physics2D.OverlapCircle(checkPos, 0.4f);
         if (hit != null && hit.gameObject != gameObject)
         {
-            IInteractable interactable = hit.GetComponent<IInteractable>();
-            if (interactable != null)
+            target = hit.GetComponent<IInteractable>() ?? hit.GetComponentInParent<IInteractable>();
+        }
+
+        // 2. 備用：若前方無偵測到物件，則從身體碰觸的清單中選擇距離最近的
+        if (target == null && nearbyInteractables.Count > 0)
+        {
+            float minDistance = float.MaxValue;
+            foreach (var item in nearbyInteractables)
             {
-                Debug.Log($"[{gameObject.name}] 與 [{hit.gameObject.name}] 進行互動！");
-                interactable.Interact(this);
+                if (item != null && item is MonoBehaviour mb)
+                {
+                    float dist = Vector3.Distance(transform.position, mb.transform.position);
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        target = item;
+                    }
+                }
             }
         }
+
+        // 3. 執行互動
+        if (target != null)
+        {
+            Debug.Log($"[{gameObject.name}] 與 [{((MonoBehaviour)target).gameObject.name}] 進行按鍵互動！");
+            target.Interact(this);
+        }
     }
+
+    /// <summary>
+    /// 嘗試切換/選擇食材互動 (E 鍵)
+    /// </summary>
+    void TryCycleInteract()
+    {
+        // 排除已被銷毀物件的 Null 參照
+        nearbyInteractables.RemoveAll(item => item == null || (item is MonoBehaviour mb && mb == null));
+
+        Container targetContainer = null;
+
+        // 1. 優先偵測前方範圍內的 Container
+        float interactDistance = 1.0f;
+        Vector2 checkPos = (Vector2)transform.position + faceDirection * interactDistance;
+        Collider2D hit = Physics2D.OverlapCircle(checkPos, 0.4f);
+        if (hit != null && hit.gameObject != gameObject)
+        {
+            targetContainer = hit.GetComponent<Container>() ?? hit.GetComponentInParent<Container>();
+        }
+
+        // 2. 備用：從碰觸到的清單中選擇 Container
+        if (targetContainer == null && nearbyInteractables.Count > 0)
+        {
+            foreach (var item in nearbyInteractables)
+            {
+                if (item is Container c)
+                {
+                    targetContainer = c;
+                    break;
+                }
+            }
+        }
+
+        // 3. 執行切換食材選擇
+        if (targetContainer != null)
+        {
+            targetContainer.CycleIngredient(this);
+        }
+    }
+
+    #region 身體碰撞與觸發區域登錄
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        IInteractable interactable = other.GetComponent<IInteractable>() ?? other.GetComponentInParent<IInteractable>();
+        if (interactable != null && !nearbyInteractables.Contains(interactable))
+        {
+            nearbyInteractables.Add(interactable);
+        }
+    }
+
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        IInteractable interactable = other.GetComponent<IInteractable>() ?? other.GetComponentInParent<IInteractable>();
+        if (interactable != null && nearbyInteractables.Contains(interactable))
+        {
+            nearbyInteractables.Remove(interactable);
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        IInteractable interactable = collision.gameObject.GetComponent<IInteractable>() ?? collision.gameObject.GetComponentInParent<IInteractable>();
+        if (interactable != null && !nearbyInteractables.Contains(interactable))
+        {
+            nearbyInteractables.Add(interactable);
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        IInteractable interactable = collision.gameObject.GetComponent<IInteractable>() ?? collision.gameObject.GetComponentInParent<IInteractable>();
+        if (interactable != null && nearbyInteractables.Contains(interactable))
+        {
+            nearbyInteractables.Remove(interactable);
+        }
+    }
+
+    #endregion
 
     #region 手持物品系統 (Carrying System)
 
@@ -140,8 +242,8 @@ public class PlayerControll : MonoBehaviour
         }
         obj.transform.localRotation = Quaternion.identity;
 
-        // 關閉被拿取物品的碰撞體，以免阻擋玩家移動
-        Collider2D objCollider = obj.GetComponent<Collider2D>();
+        // 關閉被拿取物品的碰撞體，以免阻擋玩家移動 (支援子碰撞體)
+        Collider2D objCollider = obj.GetComponent<Collider2D>() ?? obj.GetComponentInChildren<Collider2D>();
         if (objCollider != null)
         {
             objCollider.enabled = false;
@@ -162,8 +264,8 @@ public class PlayerControll : MonoBehaviour
         // 解除 Parent 綁定
         droppedObj.transform.SetParent(null);
 
-        // 重新開啟物品的碰撞體
-        Collider2D objCollider = droppedObj.GetComponent<Collider2D>();
+        // 重新開啟物品的碰撞體 (支援子碰撞體)
+        Collider2D objCollider = droppedObj.GetComponent<Collider2D>() ?? droppedObj.GetComponentInChildren<Collider2D>();
         if (objCollider != null)
         {
             objCollider.enabled = true;

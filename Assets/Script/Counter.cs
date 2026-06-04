@@ -23,38 +23,45 @@ public class Counter : MonoBehaviour, IInteractable
         // 情況 B：櫃檯上有東西
         else
         {
-            // B1. 櫃檯上是盤子，玩家手上拿著熟食材，想要直接裝盤
+            // B1. 櫃檯上是盤子，玩家手上拿著東西，想要放進盤子
             if (player.IsCarrying())
             {
                 GameObject carried = player.GetCarriedObject();
-                Ingredient ing = carried.GetComponent<Ingredient>();
-                Plate plate = placedObject.GetComponent<Plate>();
+                Plate plate = placedObject.GetComponent<Plate>() ?? placedObject.GetComponentInChildren<Plate>();
 
-                if (plate != null && !plate.isDirty && ing != null && 
-                    (ing.currentState == Ingredient.IngredientState.Cooked || ing.currentState == Ingredient.IngredientState.Processed))
+                if (plate != null && !plate.isDirty)
                 {
-                    if (plate.AddIngredient(ing.ingredientName))
+                    Plate carriedPlate = carried.GetComponent<Plate>() ?? carried.GetComponentInChildren<Plate>();
+                    if (carriedPlate != null)
                     {
+                        // 玩家拿著的是盤子 -> 取出盤子裡的食物放進櫃檯的盤子，銷毀玩家手上的空盤
+                        GameObject food = carriedPlate.TakeFood();
+                        if (food != null)
+                        {
+                            plate.AddAnyObject(food);
+                            player.Drop();
+                            Destroy(carried);
+                            Debug.Log($"[{player.gameObject.name}] 將手上盤子裡的食物 [{food.name}] 轉移到櫃檯上的盤子中。");
+                        }
+                    }
+                    else
+                    {
+                        // 玩家拿著的是普通食物/預製物 -> 直接放進櫃檯的盤子
                         player.Drop();
-                        Destroy(carried);
-                        Debug.Log($"[{player.gameObject.name}] 直接將手上的 {ing.ingredientName} 裝入櫃檯上的盤子。");
+                        plate.AddAnyObject(carried);
+                        Debug.Log($"[{player.gameObject.name}] 將手上的 [{carried.name}] 放進了櫃檯上的盤子 [{placedObject.name}]。");
                     }
                 }
-                // B2. 櫃檯上是熟食材，玩家手上拿著盤子，想要把食材裝盤
+                // B2. 櫃檯上是任何物品，玩家手上拿著盤子，想要把櫃檯上的物品裝入盤子
                 else
                 {
-                    Plate carriedPlate = carried.GetComponent<Plate>();
-                    Ingredient placedIng = placedObject.GetComponent<Ingredient>();
-
-                    if (carriedPlate != null && !carriedPlate.isDirty && placedIng != null && 
-                        (placedIng.currentState == Ingredient.IngredientState.Cooked || placedIng.currentState == Ingredient.IngredientState.Processed))
+                    Plate carriedPlate = carried.GetComponent<Plate>() ?? carried.GetComponentInChildren<Plate>();
+                    if (carriedPlate != null && !carriedPlate.isDirty)
                     {
-                        if (carriedPlate.AddIngredient(placedIng.ingredientName))
-                        {
-                            Destroy(placedObject);
-                            placedObject = null;
-                            Debug.Log($"[{player.gameObject.name}] 用手上的盤子裝走了櫃檯上的 {placedIng.ingredientName}。");
-                        }
+                        GameObject targetObj = placedObject;
+                        placedObject = null;
+                        carriedPlate.AddAnyObject(targetObj);
+                        Debug.Log($"[{player.gameObject.name}] 用手上的盤子裝走了櫃檯上的 [{targetObj.name}]。");
                     }
                 }
             }
